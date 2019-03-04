@@ -43,7 +43,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private GoogleMap map;
     static final LatLng CHEYENNE = new LatLng(41.1400, -104.8197);
-    static final LatLng LARAMIE = new LatLng(41.312928, -105.587253);
+    static final LatLng LARAMIE = new LatLng(41.314065, -105.581750);
     private FusedLocationProviderClient mFusedLocationClient;
     Location mLastLocation;
     LocationRequest mLocationRequest;
@@ -82,7 +82,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         map.moveCamera(CameraUpdateFactory.newLatLngZoom(MapsActivity.LARAMIE, 15));
 
         // Zoom in, animating the camera.
-        map.animateCamera(CameraUpdateFactory.zoomTo(10), 2000, null);
+        map.animateCamera(CameraUpdateFactory.zoomTo(20), 2000, null);
 
         // Sets the map type to be "hybrid"
         map.setMapType(GoogleMap.MAP_TYPE_NORMAL); //normal map
@@ -120,21 +120,21 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        //the picture is stored in the intent in the data key.
-        //get the picture and show it in an the imagview.
-        //Note the picture is not stored on the filesystem, so this is the only "copy" of the picture.
         Bundle extras = data.getExtras();
         if (extras != null) {
-            //if you know for a fact there will be a bundle, you can use  data.getExtras().get("Data");  but we don't know.
             Bitmap bp = (Bitmap) extras.get("data");
-            //mf.setPic(bp);
             getLastLocation();
             LatLng pos = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
-            map.addMarker(new MarkerOptions().position(pos).icon(BitmapDescriptorFactory.fromBitmap(bp)));
+            makeNewMarker(pos, bp);
 
         } else {
             Toast.makeText(this, "No picture was returned", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    public void makeNewMarker(LatLng position, Bitmap bmp)
+    {
+        map.addMarker(new MarkerOptions().position(position).anchor((float)0.5, (float)0.5).rotation(90).icon(BitmapDescriptorFactory.fromBitmap(bmp)));
     }
 
     public void getLastLocation() {
@@ -142,7 +142,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         if ((ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) &&
                 (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)) {
             //I'm on not explaining why, just asking for permission.
-           // Log.v(TAG, "asking for permissions");
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION},
                     MapsActivity.REQUEST_ACCESS_onConnected);
 
@@ -156,9 +155,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                             return;
                         }
                         mLastLocation = location;
-
-                        //Log.v(TAG, "getLastLocation");
-                        if (mLastLocation != null) {
+                        if (mLastLocation != null) { mLastLocation = location;
                             //startIntentService();
                         }
                     }
