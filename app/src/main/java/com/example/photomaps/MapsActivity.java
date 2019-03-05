@@ -1,6 +1,8 @@
 package com.example.photomaps;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
+import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.location.Location;
@@ -11,6 +13,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
@@ -49,8 +53,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     LocationRequest mLocationRequest;
     private SettingsClient mSettingsClient;
     private LocationSettingsRequest mLocationSettingsRequest;
+    Boolean mRequestingLocationUpdates = false;
+    private LocationCallback mLocationCallback;
     public static final int REQUEST_ACCESS_onConnected = 1;
-
+    public static final int REQUEST_ACCESS_startLocationUpdates = 0;
+    String TAG = "MapsActivity";
+    private static final int REQUEST_CHECK_SETTINGS = 0x1;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -70,7 +78,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         mSettingsClient = LocationServices.getSettingsClient(this);
+        createLocationRequest();
+        createLocationCallback();
+        buildLocationSettingsRequest();
         getLastLocation();
+        mRequestingLocationUpdates = !mRequestingLocationUpdates;
+        startLocationUpdates();
     }
 
 
@@ -123,7 +136,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         Bundle extras = data.getExtras();
         if (extras != null) {
             Bitmap bp = (Bitmap) extras.get("data");
-            getLastLocation();
+            //getLastLocation();
             LatLng pos = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
             makeNewMarker(pos, bp);
 
@@ -152,10 +165,14 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     @Override
                     public void onSuccess(Location location) {
                         if (location == null) {
+                            Log.w(TAG, "onSuccess:null");
                             return;
                         }
                         mLastLocation = location;
                         if (mLastLocation != null) { mLastLocation = location;
+                            LatLng point = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+                            //Log.w(TAG, "Lat: " + point.latitude+ " Long:" +point.longitude);
+                            return;
                             //startIntentService();
                         }
                     }
@@ -163,8 +180,132 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .addOnFailureListener(this, new OnFailureListener() {
                     @Override
                     public void onFailure(@NonNull Exception e) {
+                        Log.w(TAG,"getLastLocation:onFailure", e);
                     }
                 });
 
+    }
+
+    private void buildLocationSettingsRequest() {
+        LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder();
+        builder.addLocationRequest(mLocationRequest);
+        mLocationSettingsRequest = builder.build();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Stop location updates to save battery, but don't disconnect the GoogleApiClient object.
+        //stopLocationUpdates();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        if (mRequestingLocationUpdates) {
+            startLocationUpdates();
+
+        }
+    }
+
+
+    protected void createLocationRequest() {
+        mLocationRequest = new LocationRequest();
+        mLocationRequest.setInterval(10000);
+        mLocationRequest.setFastestInterval(5000);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+    }
+
+    /**
+     * Creates a callback for receiving location events.
+     */
+    private void createLocationCallback() {
+        mLocationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                super.onLocationResult(locationResult);
+
+
+                mLastLocation = locationResult.getLastLocation();
+                LatLng point = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+                //Log.wtf(TAG, "Lat: " + point.latitude+ " Long:" +point.longitude);
+            }
+        };
+    }
+
+    protected void startLocationUpdates() {
+        //first check to see if I have permissions (marshmallow) if I don't then ask, otherwise start up the demo.
+        if ((ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) &&
+                (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)) {
+            //I'm on not explaining why, just asking for permission.
+            Log.v(TAG, "asking for permissions");
+            ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION},
+                    MapsActivity.REQUEST_ACCESS_startLocationUpdates);
+            return;
+        }
+
+        // Begin by checking if the device has the necessary location settings.
+        mSettingsClient.checkLocationSettings(mLocationSettingsRequest)
+                .addOnSuccessListener(this, new OnSuccessListener<LocationSettingsResponse>() {
+                    @SuppressLint("MissingPermission")
+                    @Override
+                    public void onSuccess(LocationSettingsResponse locationSettingsResponse) {
+                        Log.i(TAG, "All location settings are satisfied.");
+
+                        //noinspection MissingPermission
+                        mFusedLocationClient.requestLocationUpdates(mLocationRequest,
+                                mLocationCallback, Looper.myLooper());
+
+                    }
+                })
+                .addOnFailureListener(this, new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        int statusCode = ((ApiException) e).getStatusCode();
+                        switch (statusCode) {
+                            case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
+                                Log.i(TAG, "Location settings are not satisfied. Attempting to upgrade " +
+                                        "location settings ");
+                                try {
+                                    // Show the dialog by calling startResolutionForResult(), and check the
+                                    // result in onActivityResult().
+                                    ResolvableApiException rae = (ResolvableApiException) e;
+                                    rae.startResolutionForResult(MapsActivity.this, REQUEST_CHECK_SETTINGS);
+                                } catch (IntentSender.SendIntentException sie) {
+                                    Log.i(TAG, "PendingIntent unable to execute request.");
+                                }
+                                break;
+                            case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
+                                String errorMessage = "Location settings are inadequate, and cannot be " +
+                                        "fixed here. Fix in Settings.";
+                                Log.e(TAG, errorMessage);
+                                Toast.makeText(MapsActivity.this, errorMessage, Toast.LENGTH_LONG).show();
+                                mRequestingLocationUpdates = false;
+                        }
+
+
+                    }
+                });
+
+
+    }
+
+    protected void stopLocationUpdates() {
+        if (!mRequestingLocationUpdates) {
+            Log.d(TAG, "stopLocationUpdates: updates never requested, no-op.");
+            return;
+        }
+
+        // It is a good practice to remove location requests when the activity is in a paused or
+        // stopped state. Doing so helps battery performance and is especially
+        // recommended in applications that request frequent location updates.
+        mFusedLocationClient.removeLocationUpdates(mLocationCallback)
+                .addOnCompleteListener(this, new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(@NonNull Task<Void> task) {
+                        mRequestingLocationUpdates = false;
+                    }
+                });
     }
 }
