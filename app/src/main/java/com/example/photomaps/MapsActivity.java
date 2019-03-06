@@ -1,6 +1,7 @@
 package com.example.photomaps;
 
 import android.annotation.SuppressLint;
+import android.app.Dialog;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
@@ -12,10 +13,13 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.fragment.app.FragmentManager;
 
 import android.os.Looper;
 import android.util.Log;
 import android.view.View;
+import android.view.Window;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -43,9 +47,13 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 
+import java.util.HashMap;
+
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback {
 
     private GoogleMap map;
+    private int imageKey = 1;
+    private HashMap imageMap;
     static final LatLng CHEYENNE = new LatLng(41.1400, -104.8197);
     static final LatLng LARAMIE = new LatLng(41.314065, -105.581750);
     private FusedLocationProviderClient mFusedLocationClient;
@@ -55,6 +63,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private LocationSettingsRequest mLocationSettingsRequest;
     Boolean mRequestingLocationUpdates = false;
     private LocationCallback mLocationCallback;
+    FragmentManager fragmentManager;
+    ImageFragment ImageFragment;
+    ImageView picView;
     public static final int REQUEST_ACCESS_onConnected = 1;
     public static final int REQUEST_ACCESS_startLocationUpdates = 0;
     String TAG = "MapsActivity";
@@ -63,6 +74,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+        fragmentManager = getSupportFragmentManager();
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -76,6 +88,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 startActivityForResult(intent, 0);
             }
         });
+        imageMap = new HashMap();
+
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         mSettingsClient = LocationServices.getSettingsClient(this);
         createLocationRequest();
@@ -109,7 +123,20 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             @Override
             public boolean onMarkerClick(Marker myMarker) {
-                Toast.makeText(getApplicationContext(), "Clicked the " + myMarker.getTitle() + " Marker", Toast.LENGTH_SHORT).show();
+                int imgKey = Integer.parseInt(myMarker.getTitle());
+                Toast.makeText(getApplicationContext(), myMarker.getTitle(),  Toast.LENGTH_SHORT).show();
+                Bitmap pic = (Bitmap)imageMap.get(imgKey);
+                //ImageFragment = ImageFragment.newInstance(pic);
+                //ImageFragment.show(fragmentManager , "myDialog");
+
+                //Dialog settingsDialog = new Dialog(getApplicationContext());
+                //settingsDialog.getWindow().requestFeature(Window.FEATURE_NO_TITLE);
+                //picView =settingsDialog.findViewById(R.id.imageView);
+                //picView.setImageBitmap(pic);
+                //settingsDialog.setContentView(getLayoutInflater().inflate(R.layout.image_layout, null));
+
+
+                //settingsDialog.show();
 
                 //return true;  //yes we consumed the event.
                 return false; //so the default action is shown as well.
@@ -147,7 +174,15 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     public void makeNewMarker(LatLng position, Bitmap bmp)
     {
-        map.addMarker(new MarkerOptions().position(position).anchor((float)0.5, (float)0.5).rotation(90).icon(BitmapDescriptorFactory.fromBitmap(bmp)));
+        imageMap.put(imageKey, bmp);
+        //Toast.makeText(getApplicationContext(), Integer.toString(imageKey),  Toast.LENGTH_SHORT).show();
+
+        if(imageMap.containsValue(bmp))
+        {
+            Log.wtf(TAG, "nice");
+        }
+        map.addMarker(new MarkerOptions().position(position).anchor((float)0.5, (float)0.5).rotation(90).title(Integer.toString(imageKey)).icon(BitmapDescriptorFactory.fromBitmap(bmp)));
+        imageKey++;
     }
 
     public void getLastLocation() {
