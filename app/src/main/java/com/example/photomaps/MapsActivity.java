@@ -6,6 +6,8 @@ import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.os.Bundle;
 
@@ -52,8 +54,9 @@ import java.util.HashMap;
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback {
 
     private GoogleMap map;
-    private int imageKey = 1;
-    private HashMap imageMap;
+    private int imageKeyVal = 1;
+    private String imageKey;
+    private HashMap<String, Bitmap> imageMap;
     static final LatLng CHEYENNE = new LatLng(41.1400, -104.8197);
     static final LatLng LARAMIE = new LatLng(41.314065, -105.581750);
     private FusedLocationProviderClient mFusedLocationClient;
@@ -88,7 +91,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 startActivityForResult(intent, 0);
             }
         });
-        imageMap = new HashMap();
+        imageMap = new HashMap<String, Bitmap>();
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         mSettingsClient = LocationServices.getSettingsClient(this);
@@ -123,22 +126,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             @Override
             public boolean onMarkerClick(Marker myMarker) {
-                int imgKey = Integer.parseInt(myMarker.getTitle());
+
                 Toast.makeText(getApplicationContext(), myMarker.getTitle(),  Toast.LENGTH_SHORT).show();
-                Bitmap pic = (Bitmap)imageMap.get(imgKey);
-                //ImageFragment = ImageFragment.newInstance(pic);
-                //ImageFragment.show(fragmentManager , "myDialog");
+                Bitmap pic = (Bitmap) imageMap.get(myMarker.getTitle());
 
-                //Dialog settingsDialog = new Dialog(getApplicationContext());
-                //settingsDialog.getWindow().requestFeature(Window.FEATURE_NO_TITLE);
-                //picView =settingsDialog.findViewById(R.id.imageView);
-                //picView.setImageBitmap(pic);
-                //settingsDialog.setContentView(getLayoutInflater().inflate(R.layout.image_layout, null));
+                ImageFragment = ImageFragment.newInstance(pic);
+                ImageFragment.show(fragmentManager , "myDialog");
 
-
-                //settingsDialog.show();
-
-                //return true;  //yes we consumed the event.
                 return false; //so the default action is shown as well.
             }
 
@@ -174,15 +168,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     public void makeNewMarker(LatLng position, Bitmap bmp)
     {
+        imageKey = Integer.toString(imageKeyVal);
         imageMap.put(imageKey, bmp);
-        //Toast.makeText(getApplicationContext(), Integer.toString(imageKey),  Toast.LENGTH_SHORT).show();
-
-        if(imageMap.containsValue(bmp))
-        {
-            Log.wtf(TAG, "nice");
-        }
-        map.addMarker(new MarkerOptions().position(position).anchor((float)0.5, (float)0.5).rotation(90).title(Integer.toString(imageKey)).icon(BitmapDescriptorFactory.fromBitmap(bmp)));
-        imageKey++;
+        
+        map.addMarker(new MarkerOptions().position(position).anchor((float)0.5, (float)0.5).rotation(90).title(imageKey).icon(BitmapDescriptorFactory.fromBitmap(bmp)));
+        imageKeyVal++;
     }
 
     public void getLastLocation() {
@@ -206,7 +196,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                         mLastLocation = location;
                         if (mLastLocation != null) { mLastLocation = location;
                             LatLng point = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
-                            //Log.w(TAG, "Lat: " + point.latitude+ " Long:" +point.longitude);
                             return;
                             //startIntentService();
                         }
@@ -264,7 +253,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
                 mLastLocation = locationResult.getLastLocation();
                 LatLng point = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
-                //Log.wtf(TAG, "Lat: " + point.latitude+ " Long:" +point.longitude);
             }
         };
     }
