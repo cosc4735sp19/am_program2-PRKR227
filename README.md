@@ -6,3 +6,7 @@ Description:  Open app, click button in bottom-left to open camera, take picture
 
 Anything that doesn't work:
 N/A
+
+# Graded: 50/50 #
+
+* Everything works as expected
